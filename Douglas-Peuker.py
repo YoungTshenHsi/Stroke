@@ -123,11 +123,12 @@ def draw_picture(x,y,name,grad=[],pos=[]):
     #plt.show()
 
 
-def get_data_simplify_index(x_data,y_data,index,threshold):
+def get_data_simplify_index_by_dist(x_data,y_data,index,threshold):
     '''
-    :param x: x轴的数据
-    :param y: y轴的数据
+    :param x_data: x轴的数据
+    :param y_data: y轴的数据
     :param index: 索引列表
+    :param threshold: 距离阈值
     return 简化后数的索引
     '''
     forward_l = len(index)
@@ -155,6 +156,39 @@ def get_data_simplify_index(x_data,y_data,index,threshold):
             sign = False
         else:
             forward_l = current_l
+        ncount += 1
+    return index
+
+
+def get_data_simplify_index_by_num_points(x_data,y_data,index,threshold):
+    '''
+    :param x: x轴的数据
+    :param y: y轴的数据
+    :param index: 索引列表
+    :param threshold: 点个数阈值
+    return 简化后数的索引
+    '''
+    sign = True
+    ncount = 1
+    while sign:
+        max_dist = []
+        max_dist_index = []
+        print("{} 第{}次综合,索引列表为{}".format(time.strftime('%Y-%m-%d %H:%M:%S',
+          time.localtime(time.time())),ncount,index))
+        for i in range(len(index)-1):
+            a = [index[i],index[i+1]]
+            if index[i]+1 == index[i+1]:
+                max_dist.append(0)
+                max_dist_index.append(0)
+            else:
+                dist = distance_point2line(x_data,y_data,a)
+                max_dist.append(max(dist))
+                max_dist_index.append(dist.index(max(dist))+1+index[i])       
+        segmentation_p_index = max_dist.index(max(max_dist))
+        index.insert(segmentation_p_index+1,max_dist_index[segmentation_p_index])
+        current_l = len(index)
+        if current_l >= threshold:
+            sign = False
         ncount += 1
     return index
 
@@ -205,19 +239,33 @@ def get_threshold_scope(x_data,min_val):
 
 if __name__ == '__main__':
     start = time.time()
+    method_dict = {0:'距离阈值',1:'点个数'}
+    method = 0
     threshold = 0
     if(len(sys.argv)==1):
-        threshold = 0.4
-        print("{} 综合默认阈值为{}".format(time.strftime('%Y-%m-%d %H:%M:%S',
-          time.localtime(time.time())),threshold))
+        method = input('请输入线综合方式(0表示按距离阈值综合,1表示按点个数阈值综合):')
+        method = int(method)
+        threshold = input('请输入综合阈值:')
+        threshold = float(threshold)
+        print(sys.argv)
+        print("{} 综合方法为:{},综合使用阈值为{}".format(time.strftime('%Y-%m-%d %H:%M:%S',
+          time.localtime(time.time())),method_dict[method],threshold))
+    elif(len(sys.argv)==3):
+        method = int(sys.argv[1])
+        threshold = float(sys.argv[2])
+        print("{} 综合方法为:{},综合使用阈值为{}".format(time.strftime('%Y-%m-%d %H:%M:%S',
+          time.localtime(time.time())),method_dict[method],threshold))
     else:
-        threshold = float(sys.argv[1])
-        print("{} 综合使用阈值为{}".format(time.strftime('%Y-%m-%d %H:%M:%S',
-          time.localtime(time.time())),threshold))
+        print('{} 需输入2个参数,实际输入参数个数为{},请确保参数输入完整!!!'.format(time.strftime('%Y-%m-%d %H:%M:%S',
+          time.localtime(time.time())),len(sys.argv)-1))
+        sys.exit(1)
     url = 'test.xlsx'
     x_data,y_data = read_from_excel(url)
     index = [0,len(x_data)-1]
-    index = get_data_simplify_index(x_data,y_data,index,threshold)
+    if method == 0:
+        index = get_data_simplify_index_by_dist(x_data,y_data,index,threshold)
+    if method == 1:
+        index = get_data_simplify_index_by_num_points(x_data,y_data,index,threshold)
     x,y = get_data_simplify(x_data,y_data,index)
     gradient,position = cal_gradient(x,y)
     variance_ratio = list(map(abs,gradient))
